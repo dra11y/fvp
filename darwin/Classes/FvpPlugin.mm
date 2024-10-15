@@ -87,7 +87,7 @@ class TexturePlayer final: public Player
 {
 public:
     TexturePlayer(int64_t handle, int width, int height, NSObject<FlutterTextureRegistry>* texReg)
-        : Player(reinterpret_cast<mdkPlayerAPI*>(handle))
+        : Player(reinterpret_cast<mdkPlayerAPI*>(handle)), isUnregistered_(false)
     {
         mtex_ = [[MetalTexture alloc] initWithWidth:width height:height];
         texId_ = [texReg registerTexture:mtex_];
@@ -106,8 +106,20 @@ public:
         });
     }
 
-    ~TexturePlayer() override {
-        setRenderCallback(nullptr);
+    void unregisterPlayer() {
+        if (isUnregistered_) {
+            return;
+        }
+        isUnregistered_ = true;
+
+        this->setRenderCallback(nullptr);
+
+        if (this->state() != State::Stopped) {
+            this->set(State::Stopped);
+            this->waitFor(State::Stopped);
+            NSLog(@"FvpPlugin: Stopped player with texture ID: %lld", texId_);
+        }
+
         setVideoSurfaceSize(-1, -1);
     }
 
@@ -115,6 +127,7 @@ public:
 private:
     int64_t texId_ = 0;
     MetalTexture* mtex_ = nil;
+    bool isUnregistered_;
 };
 
 
@@ -162,10 +175,32 @@ private:
         auto player = make_shared<TexturePlayer>(handle, width, height, _texRegistry);
         players[player->textureId()] = player;
         result(@(player->textureId()));
+    
+    } else if ([call.method isEqualToString:@"CleanupRT"]) {
+        if (players.empty()) {
+            result(nil);
+            return;
+        }
+        NSLog(@"FvpPlugin: Cleanup players");
+        for (auto& playerEntry : players) {
+            if (playerEntry.second) {
+                playerEntry.second->unregisterPlayer();
+            }
+        }
+        players.clear();
+        result(nil);
+    
     } else if ([call.method isEqualToString:@"ReleaseRT"]) {
         const auto texId = ((NSNumber*)call.arguments[@"texture"]).longLongValue;
-        [_texRegistry unregisterTexture:texId];
-        players.erase(texId);
+        // Ensure we release the player by calling unregisterPlayer()
+        if (players.find(texId) != players.end()) {
+            if (players[texId]) {
+                players[texId]->unregisterPlayer();
+                players.erase(texId);
+            }
+        } else {
+            [_texRegistry unregisterTexture:texId];
+        }
         result(nil);
     } else if ([call.method isEqualToString:@"MixWithOthers"]) {
         [[maybe_unused]] const auto value = ((NSNumber*)call.arguments[@"value"]).boolValue;
