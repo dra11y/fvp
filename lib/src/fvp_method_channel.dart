@@ -10,6 +10,12 @@ import 'fvp_platform_interface.dart';
 
 /// An implementation of [FvpPlatform] that uses method channels.
 class MethodChannelFvp extends FvpPlatform {
+  MethodChannelFvp() {
+    if (kDebugMode) {
+      cleanupTextures();
+    }
+  }
+
   /// The method channel used to interact with the native platform.
   @visibleForTesting
   final methodChannel = const MethodChannel('fvp');
@@ -46,5 +52,9 @@ class MethodChannelFvp extends FvpPlatform {
     await methodChannel.invokeMethod('MixWithOthers', {
       "value": mixWithOthers,
     });
+  }
+
+  Future<void> cleanupTextures() async {
+    await methodChannel.invokeMethod('CleanupRT');
   }
 }
