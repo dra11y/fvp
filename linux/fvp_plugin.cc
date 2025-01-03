@@ -189,6 +189,37 @@ static void fvp_plugin_handle_method_call(
     }
     g_autoptr(FlValue) result = fl_value_new_null();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+
+  } else if (strcmp(method, "CleanupRT") == 0) {
+
+    if (!players.empty()) {
+      std::clog << "FvpPlugin: Cleanup players" << std::endl;
+      // Explicitly stop and wait for each player before clearing.
+      for (auto& [texId, player] : players) {
+        if (player) {
+          // Safely stop the player if not already stopped.
+          if (player->state() != mdk::State::Stopped) {
+            std::clog << "FvpPlugin: Stopping player with texture ID: "
+                      << player->textureId << std::endl;
+
+            player->set(mdk::State::Stopped);
+            // Wait until the player is actually stopped to ensure proper teardown.
+            player->waitFor(mdk::State::Stopped);
+            std::clog << "FvpPlugin: Stopped player with texture ID: "
+                      << player->textureId << std::endl;
+          }
+        }
+      }
+
+      // Clearing the map will trigger the TexturePlayer destructors,
+      // which unregisters the textures and releases GPU resources.
+      players.clear();
+    }
+
+    // Return success (a null response).
+    g_autoptr(FlValue) result = fl_value_new_null();
+    response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+
   } else if (strcmp(method, "MixWithOthers") == 0) {
     g_autoptr(FlValue) result = fl_value_new_null();
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));

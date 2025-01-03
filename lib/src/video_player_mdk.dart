@@ -205,7 +205,7 @@ class MdkVideoPlayerPlatform extends VideoPlayerPlatform {
       }
     });
     // mdk.setGlobalOptions('plugins', 'mdk-braw');
-    mdk.setGlobalOption("log", "all");
+    mdk.setGlobalOption("log", "warn");
     mdk.setGlobalOption('d3d11.sync.cpu', 1);
     if (_subtitleFontFile?.startsWith('http') ?? false) {
       final fileName = _subtitleFontFile!.split('/').last;
