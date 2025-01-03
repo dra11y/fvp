@@ -54,6 +54,7 @@ class MethodChannelFvp extends FvpPlatform {
     });
   }
 
+  @override
   Future<void> cleanupTextures() async {
     await methodChannel.invokeMethod('CleanupRT');
   }
